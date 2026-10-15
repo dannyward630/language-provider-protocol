@@ -44,6 +44,12 @@ fn invalid_request() -> Value {
     std_error(Value::Null, -32600, "Invalid Request")
 }
 
+fn is_integer_number(number: &serde_json::Number) -> bool {
+    let number = number.to_string();
+    let digits = number.strip_prefix('-').unwrap_or(&number);
+    !digits.is_empty() && digits.bytes().all(|byte| byte.is_ascii_digit())
+}
+
 /// `invalidRequest`/`notInitialized` for any method called pre-`initialize`.
 fn not_initialized(id: &Value) -> Value {
     lpp_error(
@@ -126,7 +132,7 @@ impl Server {
         };
         let id = match object.get("id") {
             Some(id @ Value::String(_)) => id.clone(),
-            Some(Value::Number(number)) if number.is_i64() || number.is_u64() => {
+            Some(Value::Number(number)) if is_integer_number(number) => {
                 Value::Number(number.clone())
             }
             // No notifications in LPP v1: a missing or null id is a protocol
@@ -243,6 +249,22 @@ mod tests {
             let response = server.handle_message(request);
             assert_eq!(response["error"]["code"], json!(-32600));
             assert_eq!(response["id"], Value::Null);
+        }
+    }
+
+    #[test]
+    fn integer_request_ids_larger_than_u64_are_preserved() {
+        let mut server = server();
+        for id in ["18446744073709551616", "-9223372036854775809"] {
+            let request =
+                format!(r#"{{"jsonrpc":"2.0","id":{id},"method":"lpp/shutdown","params":{{}}}}"#);
+            let response = server.handle_message(&request);
+
+            assert_eq!(
+                response["error"]["data"]["lpp"]["details"]["reason"],
+                "notInitialized"
+            );
+            assert_eq!(response["id"].as_number().unwrap().to_string(), id);
         }
     }
 

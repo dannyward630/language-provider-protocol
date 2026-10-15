@@ -1,0 +1,15 @@
+{
+  "name": "large-integer-request-ids",
+  "description": "Integer request ids outside the signed and unsigned 64-bit ranges are accepted and echoed exactly.",
+  "scope": "protocol",
+  "steps": [
+    {
+      "request": {"id": 18446744073709551616, "method": "lpp/shutdown", "params": {}},
+      "expectResponse": {"error": {"code": -32000, "message": {"$provider": "nonEmptyString"}, "data": {"lpp": {"kind": "invalidRequest", "details": {"reason": "notInitialized"}}}}}
+    },
+    {
+      "request": {"id": -9223372036854775809, "method": "lpp/shutdown", "params": {}},
+      "expectResponse": {"error": {"code": -32000, "message": {"$provider": "nonEmptyString"}, "data": {"lpp": {"kind": "invalidRequest", "details": {"reason": "notInitialized"}}}}}
+    }
+  ]
+}

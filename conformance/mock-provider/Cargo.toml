@@ -11,7 +11,7 @@ publish = false
 lpp-conformance-common = { path = "../common" }
 sha2 = "0.10"
 serde = { workspace = true, features = ["derive"] }
-serde_json.workspace = true
+serde_json = { workspace = true, features = ["arbitrary_precision"] }
 
 [lints]
 workspace = true

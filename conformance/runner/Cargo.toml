@@ -10,7 +10,7 @@ publish = false
 [dependencies]
 lpp-conformance-common = { path = "../common" }
 serde = { workspace = true, features = ["derive"] }
-serde_json.workspace = true
+serde_json = { workspace = true, features = ["arbitrary_precision"] }
 
 [lints]
 workspace = true
