@@ -1,9 +1,10 @@
 {
   "name": "notification-not-supported",
-  "description": "LPP v1 defines no notifications: a message without an id is a protocol violation answered with an LPP invalidRequest error (id null in the response).",
+  "description": "LPP v1 defines no notifications: a missing or null id is a protocol violation answered with an LPP invalidRequest error (id null in the response).",
   "scope": "protocol",
   "steps": [
     {"request":{"method":"lpp/shutdown"},"expectResponse":{"error":{"code":-32000,"message":{"$provider":"nonEmptyString"},"data":{"lpp":{"kind":"invalidRequest","details":{"reason":"notificationNotSupported"}}}}}},
+    {"rawLine":"{\"jsonrpc\":\"2.0\",\"id\":null,\"method\":\"lpp/shutdown\",\"params\":{}}","expectResponse":{"error":{"code":-32000,"message":{"$provider":"nonEmptyString"},"data":{"lpp":{"kind":"invalidRequest","details":{"reason":"notificationNotSupported"}}}}}},
     {"request":{"id":1,"method":"lpp/initialize","params":{"protocolVersion":"1.0"}},"expectResponse":{"result":{"protocolVersion":"1.0","serverInfo":{"name":{"$provider":"nonEmptyString"},"version":{"$provider":"nonEmptyString"}},"languages":{"$provider":"languageList"},"capabilities":{"check":{"$provider":"boolean"},"compile":{"$provider":"boolean"},"reconstruct":{"$provider":"boolean"},"symbols":{"$provider":"boolean"},"definition":{"$provider":"boolean"},"references":{"$provider":"boolean"},"rename":{"$provider":"boolean"},"editValidation":{"$provider":"boolean"}}}}},
     {"request":{"id":2,"method":"lpp/shutdown","params":{}},"expectResponse":{"result":null}}
   ]

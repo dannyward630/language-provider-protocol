@@ -125,10 +125,13 @@ impl Server {
             return invalid_request();
         };
         let id = match object.get("id") {
-            Some(id @ (Value::Number(_) | Value::String(_))) => id.clone(),
-            // No notifications in LPP v1: a message without an id (or with a
-            // null id) is a protocol violation.
-            _ => {
+            Some(id @ Value::String(_)) => id.clone(),
+            Some(Value::Number(number)) if number.is_i64() || number.is_u64() => {
+                Value::Number(number.clone())
+            }
+            // No notifications in LPP v1: a missing or null id is a protocol
+            // violation, distinct from an invalid non-null id.
+            None | Some(Value::Null) => {
                 return lpp_error(
                     Value::Null,
                     "invalidRequest",
@@ -136,8 +139,12 @@ impl Server {
                     "invalid request: LPP v1 defines no notifications",
                 );
             }
+            Some(_) => return invalid_request(),
         };
-        let params = object.get("params").cloned().unwrap_or_else(|| json!({}));
+        let params = match object.get("params") {
+            Some(params) if params.is_object() => params.clone(),
+            _ => return std_error(id, -32602, "Invalid params"),
+        };
         match method {
             "lpp/initialize" => self.initialize(&id, params),
             "lpp/shutdown" => self.shutdown(&id),
@@ -213,5 +220,77 @@ impl Server {
             Ok(result) => ok(id.clone(), result),
             Err(error) => error.into_response(id.clone()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn server() -> Server {
+        Server::new(DEFAULT_PROTOCOL_VERSION.to_string(), HashSet::new())
+    }
+
+    #[test]
+    fn invalid_non_null_request_ids_are_invalid_requests() {
+        let mut server = server();
+        for request in [
+            r#"{"jsonrpc":"2.0","id":1.5,"method":"lpp/shutdown","params":{}}"#,
+            r#"{"jsonrpc":"2.0","id":true,"method":"lpp/shutdown","params":{}}"#,
+            r#"{"jsonrpc":"2.0","id":[1],"method":"lpp/shutdown","params":{}}"#,
+            r#"{"jsonrpc":"2.0","id":{},"method":"lpp/shutdown","params":{}}"#,
+        ] {
+            let response = server.handle_message(request);
+            assert_eq!(response["error"]["code"], json!(-32600));
+            assert_eq!(response["id"], Value::Null);
+        }
+    }
+
+    #[test]
+    fn missing_and_null_ids_keep_the_notification_error() {
+        let mut server = server();
+        for request in [
+            r#"{"jsonrpc":"2.0","method":"lpp/shutdown","params":{}}"#,
+            r#"{"jsonrpc":"2.0","id":null,"method":"lpp/shutdown","params":{}}"#,
+        ] {
+            let response = server.handle_message(request);
+            assert_eq!(
+                response["error"]["data"]["lpp"]["details"]["reason"],
+                json!("notificationNotSupported")
+            );
+            assert_eq!(response["id"], Value::Null);
+        }
+    }
+
+    #[test]
+    fn params_must_be_present_and_an_object() {
+        let mut server = server();
+        let initialized = server.handle_message(
+            r#"{"jsonrpc":"2.0","id":1,"method":"lpp/initialize","params":{"protocolVersion":"1.0"}}"#,
+        );
+        assert!(initialized.get("result").is_some());
+
+        for (request, id) in [
+            (
+                r#"{"jsonrpc":"2.0","id":2,"method":"lpp/shutdown"}"#,
+                json!(2),
+            ),
+            (
+                r#"{"jsonrpc":"2.0","id":3,"method":"lpp/shutdown","params":[]}"#,
+                json!(3),
+            ),
+            (
+                r#"{"jsonrpc":"2.0","id":4,"method":"lpp/shutdown","params":null}"#,
+                json!(4),
+            ),
+        ] {
+            let response = server.handle_message(request);
+            assert_eq!(response["error"]["code"], json!(-32602));
+            assert_eq!(response["id"], id);
+        }
+
+        let shutdown = server
+            .handle_message(r#"{"jsonrpc":"2.0","id":5,"method":"lpp/shutdown","params":{}}"#);
+        assert_eq!(shutdown["result"], Value::Null);
     }
 }

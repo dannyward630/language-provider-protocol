@@ -1,0 +1,11 @@
+{
+  "name": "invalid-request-id-types",
+  "description": "A non-null request id must be an integer or string; other JSON values receive standard -32600 with a null response id.",
+  "scope": "protocol",
+  "steps": [
+    {"rawLine":"{\"jsonrpc\":\"2.0\",\"id\":1.5,\"method\":\"lpp/shutdown\",\"params\":{}}","expectResponse":{"error":{"code":-32600,"message":{"$provider":"nonEmptyString"}}}},
+    {"rawLine":"{\"jsonrpc\":\"2.0\",\"id\":true,\"method\":\"lpp/shutdown\",\"params\":{}}","expectResponse":{"error":{"code":-32600,"message":{"$provider":"nonEmptyString"}}}},
+    {"rawLine":"{\"jsonrpc\":\"2.0\",\"id\":[1],\"method\":\"lpp/shutdown\",\"params\":{}}","expectResponse":{"error":{"code":-32600,"message":{"$provider":"nonEmptyString"}}}},
+    {"rawLine":"{\"jsonrpc\":\"2.0\",\"id\":{},\"method\":\"lpp/shutdown\",\"params\":{}}","expectResponse":{"error":{"code":-32600,"message":{"$provider":"nonEmptyString"}}}}
+  ]
+}

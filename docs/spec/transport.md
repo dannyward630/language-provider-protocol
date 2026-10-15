@@ -48,6 +48,9 @@ rules:
   `details.reason` = `notificationNotSupported`, with `id` null in the
   response. (This is an explicit deviation from JSON-RPC notification
   semantics, chosen so that client mistakes are always observable.)
+* **Invalid ids**: a non-null `id` that is neither an integer nor a string is
+  an invalid request and MUST receive the standard `-32600` error with a null
+  response `id`.
 * **No batches**: clients MUST NOT send batch messages. If a provider receives
   an array message, it MUST respond with the standard JSON-RPC error
   `-32600` ("Invalid Request") and `id` null.
@@ -63,7 +66,7 @@ data attached:
 | Code | Name | When |
 | --- | --- | --- |
 | `-32700` | Parse error | A message line is not valid JSON. Response `id` is null. |
-| `-32600` | Invalid Request | The message is not a valid JSON-RPC request (wrong `jsonrpc` value, missing `method`, non-object message, batch). |
+| `-32600` | Invalid Request | The message is not a valid JSON-RPC request (wrong `jsonrpc` value, missing `method`, invalid non-null `id`, non-object message, batch). |
 | `-32601` | Method not found | The method name is not a known LPP v1 method. |
 | `-32602` | Invalid params | The `params` value does not match the method's schema (wrong types or missing required fields). |
 | `-32603` | Internal error | The provider failed internally. |
