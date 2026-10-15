@@ -60,6 +60,15 @@ fn not_initialized(id: &Value) -> Value {
     )
 }
 
+fn already_initialized(id: &Value) -> Value {
+    lpp_error(
+        id.clone(),
+        "invalidRequest",
+        json!({ "reason": "alreadyInitialized" }),
+        "invalid request: already initialized",
+    )
+}
+
 /// Mark `name` disabled for `--without`. Returns false for unknown names.
 pub(crate) fn disable_capability(disabled: &mut HashSet<&'static str>, name: &str) -> bool {
     match CAPABILITIES.iter().find(|(n, _)| *n == name) {
@@ -147,6 +156,13 @@ impl Server {
             }
             Some(_) => return invalid_request(),
         };
+        if method == "lpp/initialize" {
+            if self.initialized {
+                return already_initialized(&id);
+            }
+        } else if !self.initialized {
+            return not_initialized(&id);
+        }
         let params = match object.get("params") {
             Some(params) if params.is_object() => params.clone(),
             _ => return std_error(id, -32602, "Invalid params"),
@@ -159,14 +175,6 @@ impl Server {
     }
 
     fn initialize(&mut self, id: &Value, params: Value) -> Value {
-        if self.initialized {
-            return lpp_error(
-                id.clone(),
-                "invalidRequest",
-                json!({ "reason": "alreadyInitialized" }),
-                "invalid request: already initialized",
-            );
-        }
         let params: InitParams = match parse_params(params) {
             Ok(params) => params,
             Err(_) => return std_error(id.clone(), -32602, "Invalid params"),
@@ -200,17 +208,11 @@ impl Server {
     }
 
     fn shutdown(&mut self, id: &Value) -> Value {
-        if !self.initialized {
-            return not_initialized(id);
-        }
         self.exiting = true;
         ok(id.clone(), Value::Null)
     }
 
     fn dispatch(&mut self, id: &Value, method: &str, params: Value) -> Value {
-        if !self.initialized {
-            return not_initialized(id);
-        }
         let Some(entry) = METHODS.iter().find(|m| m.name == method) else {
             return std_error(id.clone(), -32601, "Method not found");
         };
